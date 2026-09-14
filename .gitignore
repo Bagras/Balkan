@@ -1,0 +1,4 @@
+# Кэш импорта Godot
+.godot/
+# Скриншоты, снятые tools/screenshot.gd
+shot_*.png
