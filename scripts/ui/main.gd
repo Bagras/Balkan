@@ -3,7 +3,7 @@ extends Control
 ## Интерфейс партии. Строится кодом — так его проще перекрашивать и
 ## не нужно синхронизировать .tscn с логикой. Ядро (Game) про UI не знает.
 
-enum Mode { TITLE, EVENT, OUTCOME, ENDING }
+enum Mode { TITLE, BRIEFING, EVENT, OUTCOME, ENDING }
 
 var db: ContentDB
 var game: Game
@@ -18,8 +18,9 @@ var _choice_box: VBoxContainer
 var _cabinet_box: VBoxContainer
 var _footer: HBoxContainer
 var _journal_button: Button
+var _help_button: Button
 var _saved_body := ""
-var _journal_open := false
+var _overlay := ""   ## "" | "journal" | "help" — что показано поверх текста
 
 
 func _ready() -> void:
@@ -40,8 +41,30 @@ func _ready() -> void:
 func _new_game() -> void:
 	SaveGame.clear()
 	game.start(0)
-	_close_journal()
-	_advance_turn()
+	_close_overlay()
+	_show_briefing()
+
+
+## Короткий инструктаж перед первым ходом: что за шкалы, чем платят
+## и почему точную цену решения не показывают заранее.
+func _show_briefing() -> void:
+	mode = Mode.BRIEFING
+	_clear(_choice_box)
+	_clear(_cabinet_box)
+	_clear(_footer)
+	_journal_button.visible = false
+	_help_button.visible = true
+
+	var briefing: Dictionary = db.help.get("briefing", {})
+	_turn_label.text = "Мандат ООН"
+	_source_label.text = "Тридцать ходов"
+	_title_label.text = String(briefing.get("title", "Инструктаж"))
+	_body.text = String(briefing.get("text", ""))
+	_refresh_stats()
+
+	var start_button := _make_wide_button("Принять дела  →", true)
+	start_button.pressed.connect(_advance_turn)
+	_choice_box.add_child(start_button)
 
 
 ## Экран выбора: продолжить прерванный мандат или начать заново.
@@ -51,6 +74,7 @@ func _show_title() -> void:
 	_clear(_cabinet_box)
 	_clear(_footer)
 	_journal_button.visible = false
+	_help_button.visible = false
 	_turn_label.text = "Балканский протекторат"
 	_source_label.text = "Мандат прерван на середине"
 	_title_label.text = "Незаконченный мандат"
@@ -66,13 +90,14 @@ func _show_title() -> void:
 
 
 func _on_resume() -> void:
+	_help_button.visible = true
 	var err := SaveGame.load_into(game)
 	if not err.is_empty():
 		push_warning(err)
 		_new_game()
 		return
 	game.autosave = true
-	_close_journal()
+	_close_overlay()
 	if game.state.phase == GameState.Phase.CHOICE and not game.current_event.is_empty():
 		mode = Mode.EVENT
 		_render_event(game.describe_current())
@@ -141,41 +166,74 @@ func _build_sidebar() -> Control:
 	filler.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(filler)
 
-	_journal_button = Button.new()
-	_journal_button.text = "Журнал решений"
-	_journal_button.add_theme_font_size_override("font_size", 12)
-	_journal_button.add_theme_color_override("font_color", Palette.TEXT_DIM)
-	_journal_button.add_theme_stylebox_override("normal", Palette.button_style(Palette.PANEL, Palette.PANEL_EDGE))
-	_journal_button.add_theme_stylebox_override("hover", Palette.button_style(Palette.PANEL_EDGE, Palette.ACCENT))
-	_journal_button.pressed.connect(_toggle_journal)
+	_journal_button = _make_side_button("Журнал решений")
+	_journal_button.pressed.connect(_toggle_overlay.bind("journal"))
 	column.add_child(_journal_button)
+
+	_help_button = _make_side_button("Справка")
+	_help_button.pressed.connect(_toggle_overlay.bind("help"))
+	column.add_child(_help_button)
 	return panel
 
 
-## Журнал открывается поверх текста события: выборы и кабинет прячутся,
-## но не пересобираются — вернуться нужно ровно туда, где был игрок.
-func _toggle_journal() -> void:
-	if _journal_open:
-		_close_journal()
+func _make_side_button(text: String) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.add_theme_font_size_override("font_size", 12)
+	button.add_theme_color_override("font_color", Palette.TEXT_DIM)
+	button.add_theme_stylebox_override("normal", Palette.button_style(Palette.PANEL, Palette.PANEL_EDGE))
+	button.add_theme_stylebox_override("hover", Palette.button_style(Palette.PANEL_EDGE, Palette.ACCENT))
+	return button
+
+
+## Журнал и справка показываются поверх текста события: выборы и кабинет
+## прячутся, но не пересобираются — вернуться нужно ровно туда, где был игрок.
+func _toggle_overlay(which: String) -> void:
+	if _overlay == which:
+		_close_overlay()
 		return
-	_journal_open = true
-	_saved_body = _body.text
-	_journal_button.text = "← Вернуться"
+	var was_open := not _overlay.is_empty()
+	if not was_open:
+		_saved_body = _body.text
+	_overlay = which
+	_journal_button.text = "← Вернуться" if which == "journal" else "Журнал решений"
+	_help_button.text = "← Вернуться" if which == "help" else "Справка"
 	_choice_box.visible = false
 	_cabinet_box.visible = false
 	_footer.visible = false
-	_body.text = _journal_text()
+	_body.text = _journal_text() if which == "journal" else _help_text()
 
 
-func _close_journal() -> void:
-	if not _journal_open:
+func _close_overlay() -> void:
+	if _overlay.is_empty():
 		return
-	_journal_open = false
+	_overlay = ""
 	_journal_button.text = "Журнал решений"
+	_help_button.text = "Справка"
 	_choice_box.visible = true
 	_cabinet_box.visible = true
 	_footer.visible = true
 	_body.text = _saved_body
+
+
+func _help_text() -> String:
+	var dim := Palette.TEXT_DIM.to_html(false)
+	var accent := Palette.ACCENT.to_html(false)
+	var parts: Array = []
+	for section in db.help.get("sections", []):
+		parts.append("[color=#%s][b]%s[/b][/color]" % [accent, String(section["title"])])
+		var note := String(section.get("note", ""))
+		if not note.is_empty():
+			parts.append("[font_size=13][color=#%s]%s[/color][/font_size]" % [dim, note])
+		for item in section["items"]:
+			var key := String(item.get("stat", ""))
+			if key.is_empty():
+				parts.append("[font_size=14]%s[/font_size]" % String(item["text"]))
+			else:
+				parts.append("[font_size=14][b]%s[/b] — %s[/font_size]" % [
+					String(db.config["stats"][key]["label"]), String(item["text"])])
+		parts.append("")
+	return "\n".join(parts)
 
 
 func _journal_text() -> String:
@@ -262,6 +320,11 @@ func _add_stat_group(caption: String, keys: Array, fatal: bool) -> void:
 		var value: int = game.state.get_stat(String(key))
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
+		# MOUSE_FILTER_STOP нужен, иначе контейнер не показывает подсказку
+		row.mouse_filter = Control.MOUSE_FILTER_STOP
+		var explanation := db.stat_help(String(key))
+		if not explanation.is_empty():
+			row.tooltip_text = "%s\n\n%s" % [String(db.config["stats"][key]["label"]), explanation]
 
 		var name_label := _make_label(String(db.config["stats"][key]["label"]), 13, Palette.TEXT)
 		name_label.custom_minimum_size = Vector2(142, 0)
@@ -318,6 +381,7 @@ func _advance_turn() -> void:
 func _render_event(presented: Dictionary) -> void:
 	mode = Mode.EVENT
 	_journal_button.visible = true
+	_help_button.visible = true
 	_turn_label.text = "Ход %d / %d" % [game.state.turn, int(db.config["mandate_turns"])]
 	_source_label.text = _source_caption(String(presented["source"]))
 	_title_label.text = String(presented["title"])
@@ -396,6 +460,7 @@ func _format_deltas(applied: Dictionary) -> String:
 
 func _show_cabinet(body_text: String) -> void:
 	_journal_button.visible = true
+	_help_button.visible = true
 	_body.text = body_text
 	_refresh_stats()
 	_clear(_cabinet_box)
@@ -474,7 +539,7 @@ func _on_end_turn() -> void:
 
 func _show_ending(ending: Dictionary) -> void:
 	mode = Mode.ENDING
-	_close_journal()
+	_close_overlay()
 	_clear(_choice_box)
 	_clear(_cabinet_box)
 	_clear(_footer)

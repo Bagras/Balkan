@@ -11,6 +11,7 @@ var crises: Array = []          ## кризисные события механ�
 var patron_events: Array = []   ## события патронов
 var actions: Array = []         ## действия кабинета
 var endings: Array = []
+var help: Dictionary = {}       ## тексты справки и подсказок по шкалам
 
 var _by_code: Dictionary = {}
 var _chain_starters: Dictionary = {}
@@ -57,6 +58,11 @@ func load_all() -> String:
 		return en
 	endings = en["endings"]
 
+	var hp = _read_json(CONTENT_DIR + "help.json")
+	if hp is String:
+		return hp
+	help = hp
+
 	for e in events:
 		_by_code[e["code"]] = e
 		# Стартовое событие цепочки — обычное случайное, чья заметка ведёт
@@ -78,6 +84,15 @@ func load_all() -> String:
 ## Событие по коду («I», «Т-5», «С-3», «P-BEL-HIGH», «CR-STAB»).
 func get_event(code: String) -> Dictionary:
 	return _by_code.get(code, {})
+
+
+## Пояснение к шкале для всплывающей подсказки.
+func stat_help(key: String) -> String:
+	for section in help.get("sections", []):
+		for item in section["items"]:
+			if String(item.get("stat", "")) == key:
+				return String(item["text"])
+	return ""
 
 
 func is_chain_starter(code: String) -> bool:

@@ -31,6 +31,18 @@ func _run() -> void:
 		return
 	print("ok   сцена собрана, партия начата")
 
+	if main.mode != main.Mode.BRIEFING:
+		print("FAIL новая партия не начинается с инструктажа")
+		_errors += 1
+	elif not main._body.text.contains("тридцать") and not main._body.text.contains("Мандат"):
+		print("FAIL текст инструктажа пуст или не о мандате")
+		_errors += 1
+	else:
+		print("ok   новая партия начинается с инструктажа")
+	_dismiss_briefing(main)
+
+	_check_help(main)
+
 	var turns := 0
 	while turns < 45:
 		if main.mode == main.Mode.ENDING:
@@ -76,6 +88,7 @@ func _check_journal_and_resume(packed: PackedScene) -> void:
 	var main: Control = packed.instantiate()
 	root.add_child(main)
 
+	_dismiss_briefing(main)
 	# играем пару ходов, чтобы в журнале что-то появилось и записался автосейв
 	for i in 3:
 		_press_first_enabled(main._choice_box)
@@ -132,6 +145,48 @@ func _check_journal_and_resume(packed: PackedScene) -> void:
 	else:
 		print("ok   продолженная партия совпадает с сохранённой (ход %d)" % turn_before)
 	SaveGame.clear()
+
+
+## Инструктаж показывается один раз перед первым ходом — закрываем его.
+func _dismiss_briefing(main: Control) -> void:
+	if main.mode == main.Mode.BRIEFING:
+		_press_first_enabled(main._choice_box)
+
+
+func _check_help(main: Control) -> void:
+	var before: String = main._body.text
+	main._help_button.pressed.emit()
+	var shown: String = main._body.text
+	if shown == before:
+		print("FAIL справка не открылась")
+		_errors += 1
+		return
+	var missing: Array = []
+	for word in ["Стабильность", "Одобрение ООН", "Влияние", "Белград", "кабинет"]:
+		if not shown.contains(word):
+			missing.append(word)
+	if not missing.is_empty():
+		print("FAIL в справке нет разделов: " + ", ".join(missing))
+		_errors += 1
+	else:
+		print("ok   справка объясняет шкалы, патронов и кабинет")
+	main._help_button.pressed.emit()
+	if main._body.text != before:
+		print("FAIL возврат из справки не восстановил экран")
+		_errors += 1
+	else:
+		print("ok   возврат из справки восстанавливает экран")
+
+	# подсказки должны стоять на строках шкал
+	var with_tips := 0
+	for child in main._stats_box.get_children():
+		if child is Control and not String(child.tooltip_text).is_empty():
+			with_tips += 1
+	if with_tips < 12:
+		print("FAIL подсказок на шкалах только %d, ожидалось 12" % with_tips)
+		_errors += 1
+	else:
+		print("ok   у всех двенадцати шкал есть подсказка (%d)" % with_tips)
 
 
 ## Нажимает первую активную кнопку в контейнере. Возвращает, нашлась ли такая.
