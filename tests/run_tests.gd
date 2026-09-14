@@ -65,9 +65,10 @@ func equal(actual, expected, what: String) -> void:
 
 func test_content_loads(db: ContentDB) -> void:
 	suite("Загрузка контента")
-	equal(db.events.size(), 97, "всего событий (47 из .docx + 50 дополнительных)")
-	equal(db.events_of_kind("random").size(), 64, "случайных событий")
-	equal(db.events_of_kind("chain").size(), 16, "шагов цепочек")
+	equal(db.events.size(), 117, "всего событий (47 из .docx + 70 дополнительных)")
+	equal(db.events_of_kind("random").size(), 68, "случайных событий")
+	equal(db.events_of_kind("chain").size(), 32, "шагов цепочек")
+	equal(db.chain_starter_count(), 8, "цепочек в игре")
 	equal(db.events_of_kind("trigger").size(), 10, "триггерных событий")
 	equal(db.events_of_kind("story").size(), 7, "сюжетных событий")
 	equal(db.crises.size(), 4, "кризисных событий")

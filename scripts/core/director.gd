@@ -7,7 +7,7 @@ extends RefCounted
 ## Сколько последних ходов мандата цепочки уже не запускаются.
 const CHAIN_TAIL_TURNS := 8
 ## Во сколько раз стартовое событие цепочки вероятнее обычного.
-const CHAIN_STARTER_WEIGHT := 2
+const CHAIN_STARTER_WEIGHT := 1
 
 var db: ContentDB
 
