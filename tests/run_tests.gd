@@ -25,6 +25,7 @@ func _initialize() -> void:
 	test_crisis_defeat(db)
 	test_actions(db)
 	test_patron_drift(db)
+	test_turn_pressure(db)
 	test_full_playthrough(db)
 	test_determinism(db)
 	test_content_schema(db)
@@ -256,6 +257,39 @@ func test_patron_drift(db: ContentDB) -> void:
 	# сила события масштабируется влиянием, но не безгранично
 	game.state.stats["patron_belgrade"] = 100
 	check(director.patron_scale(game.state, "patron_belgrade") <= 1.6, "множитель ограничен 1.6")
+
+
+func test_turn_pressure(db: ContentDB) -> void:
+	suite("Цена присутствия")
+	var director := Director.new(db)
+	var state := GameState.new()
+	state.setup(db.config, 8)
+
+	# до start_turn давление не действует
+	state.turn = 1
+	var un_before := state.get_stat("un")
+	director.apply_turn_pressure(state)
+	equal(state.get_stat("un"), un_before, "на первом ходу одобрение не тает")
+
+	# запущенная шкала проседает именно там, где слабее всего
+	state.turn = 4
+	state.stats["security"] = 20
+	state.stats["stability"] = 60
+	var security_before := state.get_stat("security")
+	var stability_before := state.get_stat("stability")
+	director.apply_turn_pressure(state)
+	check(state.get_stat("security") < security_before, "слабейшая шкала проседает")
+	equal(state.get_stat("stability"), stability_before, "благополучная шкала не трогается")
+
+	# за 20 ходов давление накапливается заметно
+	var fresh := GameState.new()
+	fresh.setup(db.config, 9)
+	var un_start := fresh.get_stat("un")
+	for turn in range(1, 21):
+		fresh.turn = turn
+		director.apply_turn_pressure(fresh)
+	check(fresh.get_stat("un") < un_start - 5, "за 20 ходов одобрение ООН заметно тает (%d -> %d)"
+			% [un_start, fresh.get_stat("un")])
 
 
 func test_full_playthrough(db: ContentDB) -> void:

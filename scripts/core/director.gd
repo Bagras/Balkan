@@ -24,6 +24,31 @@ func tick_patrons(state: GameState) -> void:
 		state.add_stat(patron_key, step)
 
 
+## Цена присутствия: одобрение Совбеза тает само по себе, а запущенные
+## проблемы усугубляются там, где и так слабее всего. Без этого давления
+## аккуратная игра не проигрывает никогда.
+func apply_turn_pressure(state: GameState) -> void:
+	var rules: Dictionary = db.config.get("turn_pressure", {})
+	if rules.is_empty() or state.turn < int(rules.get("start_turn", 1)):
+		return
+
+	var interval := maxi(int(rules.get("un_interval", 1)), 1)
+	if (state.turn - int(rules.get("start_turn", 1))) % interval == 0:
+		state.add_stat("un", -int(rules.get("un", 0)))
+
+	var drain := int(rules.get("weakest_fatal", 0))
+	if drain <= 0:
+		return
+	var weakest := ""
+	var weakest_value := 9999
+	for key in db.fatal_stats():
+		if state.get_stat(key) < weakest_value:
+			weakest_value = state.get_stat(key)
+			weakest = key
+	if not weakest.is_empty():
+		state.add_stat(weakest, -drain)
+
+
 ## Сила патронского события растёт с влиянием патрона: степень влияния
 ## определяет, насколько сильным будет эффект (потолок — полуторный).
 func patron_scale(state: GameState, patron_key: String) -> float:

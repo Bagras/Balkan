@@ -62,7 +62,7 @@ func _build_layout() -> void:
 func _build_sidebar() -> Control:
 	var panel := PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", Palette.panel_style())
-	panel.custom_minimum_size = Vector2(292, 0)
+	panel.custom_minimum_size = Vector2(316, 0)
 	panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
 	var column := VBoxContainer.new()
@@ -146,7 +146,7 @@ func _add_stat_group(caption: String, keys: Array, fatal: bool) -> void:
 		row.add_theme_constant_override("separation", 8)
 
 		var name_label := _make_label(String(db.config["stats"][key]["label"]), 13, Palette.TEXT)
-		name_label.custom_minimum_size = Vector2(118, 0)
+		name_label.custom_minimum_size = Vector2(142, 0)
 		row.add_child(name_label)
 
 		var bar := ProgressBar.new()
@@ -154,7 +154,7 @@ func _add_stat_group(caption: String, keys: Array, fatal: bool) -> void:
 		bar.max_value = 100
 		bar.value = value
 		bar.show_percentage = false
-		bar.custom_minimum_size = Vector2(86, 11)
+		bar.custom_minimum_size = Vector2(78, 11)
 		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var fill := StyleBoxFlat.new()
 		fill.bg_color = Palette.gauge_color(value) if fatal else _tint_for(String(key))

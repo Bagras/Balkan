@@ -39,6 +39,7 @@ func begin_turn() -> Dictionary:
 		state.low_stability_streak = 0
 
 	director.tick_patrons(state)
+	director.apply_turn_pressure(state)
 
 	var selection := director.select_event(state)
 	if selection.is_empty():

@@ -8,12 +8,12 @@
         "un": -8
       },
       "gain": {
-        "security": 7,
+        "security": 6,
         "support": -4
       },
       "cooldown": 2,
       "requires": {
-        "un": 20
+        "un": 18
       }
     },
     {
@@ -21,15 +21,15 @@
       "title": "Программа общественных работ",
       "description": "Дороги, школы, ремонт сетей — на деньги, выпрошенные сверх сметы. Люди увидят результат до конца квартала, донор увидит перерасход раньше.",
       "cost": {
-        "un": -6
+        "un": -8
       },
       "gain": {
-        "support": 6,
-        "stability": 2
+        "support": 5,
+        "stability": 1
       },
-      "cooldown": 2,
+      "cooldown": 3,
       "requires": {
-        "un": 16
+        "un": 18
       }
     },
     {
@@ -37,15 +37,15 @@
       "title": "Показательная антикоррупционная кампания",
       "description": "Несколько громких дел, пресс-конференция и возврат части средств. Дешевле всего сдать тех, кто и так был расходным материалом.",
       "cost": {
-        "personal": -6
+        "personal": -7
       },
       "gain": {
-        "un": 5,
-        "support": 2
+        "un": 4,
+        "support": 1
       },
       "cooldown": 3,
       "requires": {
-        "personal": 12
+        "personal": 16
       }
     },
     {
@@ -64,9 +64,9 @@
           "delta": 5
         }
       ],
-      "cooldown": 2,
+      "cooldown": 3,
       "requires": {
-        "personal": 12
+        "personal": 14
       }
     },
     {
@@ -74,15 +74,16 @@
       "title": "Провести контракт через доверенную фирму",
       "description": "Смета закрыта, объект сдан с оговорками, разница ушла на счёт, к которому ваше имя не привязано. Аудиторы считают такие эпизоды не по одному.",
       "cost": {
-        "un": -4,
-        "stability": -2
+        "un": -5,
+        "stability": -3
       },
       "gain": {
-        "personal": 7
+        "personal": 6
       },
-      "cooldown": 3,
+      "cooldown": 4,
       "requires": {
-        "un": 12
+        "un": 12,
+        "stability": 8
       }
     },
     {
@@ -90,13 +91,13 @@
       "title": "Комендантские меры в проблемных округах",
       "description": "Патрули, блокпосты, час на улице до темноты. Работает мгновенно и запоминается на годы.",
       "cost": {
-        "support": -5
+        "support": -6
       },
       "gain": {
-        "security": 5,
-        "stability": 2
+        "security": 4,
+        "stability": 1
       },
-      "cooldown": 2,
+      "cooldown": 3,
       "requires": {
         "support": 14
       }
@@ -109,7 +110,7 @@
         "influence": -5
       },
       "gain": {
-        "support": 3
+        "support": 1
       },
       "dynamic_gain": [
         {
@@ -119,7 +120,7 @@
       ],
       "cooldown": 3,
       "requires": {
-        "influence": 14
+        "influence": 12
       }
     },
     {
@@ -127,13 +128,13 @@
       "title": "Давление на парламент",
       "description": "Звонки, напоминания о процедурах и один отозванный документ. Голосование проходит как надо, и об этом узнают все.",
       "cost": {
-        "influence": -5
+        "influence": -6
       },
       "gain": {
-        "stability": 5,
+        "stability": 4,
         "support": -3
       },
-      "cooldown": 2,
+      "cooldown": 3,
       "requires": {
         "influence": 14
       }

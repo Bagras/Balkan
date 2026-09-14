@@ -144,6 +144,6 @@ static func _best_ending_available(state: GameState) -> bool:
 	if not state.has_flag("best_ending_enabled"):
 		return false
 	for key in ["stability", "security", "support", "un"]:
-		if state.get_stat(key) < 60:
+		if state.get_stat(key) < state.best_ending_gate:
 			return false
 	return true

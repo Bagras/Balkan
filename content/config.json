@@ -12,7 +12,7 @@
     "un": {
       "label": "Одобрение ООН",
       "short": "ООН",
-      "start": 60,
+      "start": 55,
       "fatal": true
     },
     "security": {
@@ -153,5 +153,12 @@
       "value": 15
     }
   },
-  "effect_multiplier": 2.0
+  "effect_multiplier": 2.0,
+  "turn_pressure": {
+    "start_turn": 3,
+    "un": 1,
+    "weakest_fatal": 1,
+    "un_interval": 2
+  },
+  "best_ending_gate": 54
 }

@@ -20,7 +20,7 @@
           {
             "type": "stat_above",
             "stat": "personal",
-            "value": 65
+            "value": 55
           }
         ]
       },
@@ -36,26 +36,26 @@
           {
             "type": "stat_above",
             "stat": "stability",
-            "value": 65
+            "value": 58
           },
           {
             "type": "stat_above",
             "stat": "security",
-            "value": 65
+            "value": 58
           },
           {
             "type": "stat_above",
             "stat": "support",
-            "value": 65
+            "value": 58
           },
           {
             "type": "stat_above",
             "stat": "un",
-            "value": 65
+            "value": 58
           },
           {
             "type": "all_loyalty_above",
-            "value": 50
+            "value": 45
           },
           {
             "type": "final_choice",

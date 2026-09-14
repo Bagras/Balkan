@@ -64,7 +64,8 @@ func _goals() -> Array:
 		},
 		{
 			"target": "E-PARTITION", "name": "Раздел",
-			"weights": {"stability": 1.0, "security": 1.0},
+			"weights": {"stability": 1.2, "security": 1.2, "un": 1.0,
+					"loyalty_serb": 2.5, "loyalty_alb": -2.5},
 			"forced": {"Т-3": 3, "Т-9": 2},
 			"cabinet": true,
 		},
@@ -109,7 +110,7 @@ func _probe(goal: Dictionary, runs: int) -> void:
 
 	print("=== %s (%s) ===" % [goal["name"], goal["target"]])
 	print("  достигнуто: %d из %d (%.1f%%)" % [wins, runs, 100.0 * wins / runs])
-	if wins == 0:
+	if wins < runs:
 		var parts: Array = []
 		for key in others:
 			parts.append("%s %d" % [key, int(others[key])])
@@ -127,6 +128,7 @@ func _probe(goal: Dictionary, runs: int) -> void:
 			peak_parts.append("%s %d" % [String(db.config["stats"][key]["short"]), int(peaks.get(key, 0))])
 		print("  лучший достигнутый максимум за все партии: " + ", ".join(peak_parts))
 		print("  выше всего удалось поднять САМУЮ СЛАБУЮ лояльность: %d" % int(peaks.get("min_loyalty", 0)))
+	if wins == 0:
 		print("")
 		return
 

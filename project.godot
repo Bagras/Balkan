@@ -7,8 +7,15 @@ run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.3", "GL Compatibility")
 
 [display]
+; Базовое разрешение 16:9 — самое частое соотношение у мониторов.
+; canvas_items масштабирует весь интерфейс от базового разрешения, поэтому
+; на большом экране растёт шрифт, а не длина строки. expand отдаёт лишнее
+; место под интерфейс вместо чёрных полей.
 window/size/viewport_width=1280
-window/size/viewport_height=800
+window/size/viewport_height=720
+window/size/resizable=true
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
 
 [rendering]
 renderer/rendering_method="gl_compatibility"

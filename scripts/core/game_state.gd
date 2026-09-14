@@ -34,6 +34,7 @@ var _max: int = 100
 var _config: Dictionary = {}
 
 var effect_multiplier: float = 1.0
+var best_ending_gate: int = 60
 
 var rng := RandomNumberGenerator.new()
 
@@ -43,6 +44,7 @@ func setup(config: Dictionary, seed_value: int = 0) -> void:
 	_min = config["stat_min"]
 	_max = config["stat_max"]
 	effect_multiplier = float(config.get("effect_multiplier", 1.0))
+	best_ending_gate = int(config.get("best_ending_gate", 60))
 	for key in config["stats"]:
 		stats[key] = int(config["stats"][key]["start"])
 	rng.seed = seed_value if seed_value != 0 else randi()
