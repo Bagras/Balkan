@@ -13,6 +13,7 @@ var actions: Array = []         ## действия кабинета
 var endings: Array = []
 
 var _by_code: Dictionary = {}
+var _chain_starters: Dictionary = {}
 
 const CONTENT_DIR := "res://content/"
 
@@ -58,6 +59,15 @@ func load_all() -> String:
 
 	for e in events:
 		_by_code[e["code"]] = e
+		# Стартовое событие цепочки — обычное случайное, чья заметка ведёт
+		# на шаг цепочки. Отдельно помечать его в тексте не нужно.
+		if e["kind"] == "random":
+			for choice in e["choices"]:
+				for hook in choice.get("hooks", []):
+					if String(hook.get("type", "")) == "schedule":
+						for target in hook.get("targets", []):
+							if String(target).begins_with("Ц-"):
+								_chain_starters[e["code"]] = true
 	for e in patron_events:
 		_by_code[e["id"]] = e
 	for c in crises:
@@ -68,6 +78,14 @@ func load_all() -> String:
 ## Событие по коду («I», «Т-5», «С-3», «P-BEL-HIGH», «CR-STAB»).
 func get_event(code: String) -> Dictionary:
 	return _by_code.get(code, {})
+
+
+func is_chain_starter(code: String) -> bool:
+	return _chain_starters.get(code, false)
+
+
+func chain_starter_count() -> int:
+	return _chain_starters.size()
 
 
 func events_of_kind(kind: String) -> Array:

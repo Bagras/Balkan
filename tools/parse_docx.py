@@ -124,7 +124,7 @@ BRANCH_FLAGS = {
 
 def _targets(text):
     """Все коды триггеров/сюжетных событий, упомянутые в куске заметки."""
-    return re.findall(r"[ТС]-\d+", text)
+    return re.findall(r"(?:[ТС]-\d+|Ц-[А-Я]\d+)", text)
 
 
 def parse_note(note):
@@ -260,6 +260,8 @@ def parse(lines):
             kind = "trigger"; continue
         if line == "ГЛАВНОСЮЖЕТНЫЕ ИВЕНТЫ":
             kind = "story"; continue
+        if line == "ЦЕПОЧКИ":
+            kind = "chain"; continue
         if line.startswith("Черновая рамка концовок"):
             break
 
@@ -269,9 +271,21 @@ def parse(lines):
 
         head = (re.match(r"^№\s+([IVXLCDM]+)\.\s+(.+)$", line)
                 or re.match(r"^(Т-\d+)\.\s+(.+)$", line)
-                or re.match(r"^(С-\d+)\.\s+(.+)$", line))
+                or re.match(r"^(С-\d+)\.\s+(.+)$", line)
+                or re.match(r"^(Ц-[А-Я]\d+)\.\s+(.+)$", line))
         if head and kind:
             ident, title = head.group(1), head.group(2).strip()
+            # Вид события определяет его код, а не порядок заголовков в файле:
+            # иначе стартовое событие после секции «ЦЕПОЧКИ» молча становится
+            # её шагом и перестаёт выпадать случайно.
+            if ident.startswith("Ц-"):
+                event_kind = "chain"
+            elif ident.startswith("Т-"):
+                event_kind = "trigger"
+            elif ident.startswith("С-"):
+                event_kind = "story"
+            else:
+                event_kind = "random"
             turn_window = None
             tw = re.search(r"\(ход\s+([\d–\-—]+)\)\s*$", title)
             if tw:
@@ -279,8 +293,8 @@ def parse(lines):
                 turn_window = [nums[0], nums[-1]]
                 title = title[: tw.start()].strip()
             current = {
-                "id": ident if kind != "random" else f"R-{roman_to_int(ident):02d}",
-                "code": ident, "kind": kind, "category": category,
+                "id": ident if event_kind != "random" else f"R-{roman_to_int(ident):02d}",
+                "code": ident, "kind": event_kind, "category": category,
                 "title": title, "turn_window": turn_window,
                 "source": None, "design_note": None, "description": "", "choices": [],
             }

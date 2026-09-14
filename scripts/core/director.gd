@@ -4,6 +4,11 @@ extends RefCounted
 ## Решает, какое событие придёт следующим ходом, и обслуживает патронов
 ## и отложенные триггеры. Приоритет: кризис > сюжет > триггер > случайное.
 
+## Сколько последних ходов мандата цепочки уже не запускаются.
+const CHAIN_TAIL_TURNS := 8
+## Во сколько раз стартовое событие цепочки вероятнее обычного.
+const CHAIN_STARTER_WEIGHT := 2
+
 var db: ContentDB
 
 
@@ -181,12 +186,25 @@ func _select_patron(state: GameState) -> Dictionary:
 
 func _select_random(state: GameState) -> Dictionary:
 	var pool: Array = []
+	var weights: Array = []
+	# Цепочке нужно время развернуться: старт под конец мандата оборвался бы
+	# на середине, поэтому ближе к финалу такие события не выпадают вовсе.
+	var too_late := state.turn > int(db.config["mandate_turns"]) - CHAIN_TAIL_TURNS
+
 	for event in db.events:
-		if event["kind"] == "random" and not state.is_seen(String(event["code"])):
-			pool.append(event)
+		# Шаги цепочек (kind == "chain") сюда не попадают намеренно:
+		# они приходят только по ссылке из предыдущего шага.
+		if event["kind"] != "random" or state.is_seen(String(event["code"])):
+			continue
+		var starter := db.is_chain_starter(String(event["code"]))
+		if starter and too_late:
+			continue
+		pool.append(event)
+		weights.append(CHAIN_STARTER_WEIGHT if starter else 1)
+
 	if pool.is_empty():
 		return {}
-	return pool[state.rng.randi_range(0, pool.size() - 1)]
+	return _weighted_pick(state, pool, weights)
 
 
 func _cooled_down(state: GameState, code: String, cooldown: int) -> bool:

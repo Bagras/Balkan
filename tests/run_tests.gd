@@ -27,6 +27,7 @@ func _initialize() -> void:
 	test_patron_drift(db)
 	test_turn_pressure(db)
 	test_save_load(db)
+	test_chains(db)
 	test_full_playthrough(db)
 	test_determinism(db)
 	test_content_schema(db)
@@ -64,8 +65,9 @@ func equal(actual, expected, what: String) -> void:
 
 func test_content_loads(db: ContentDB) -> void:
 	suite("Загрузка контента")
-	equal(db.events.size(), 77, "всего событий (47 из .docx + 30 дополнительных)")
-	equal(db.events_of_kind("random").size(), 60, "случайных событий")
+	equal(db.events.size(), 97, "всего событий (47 из .docx + 50 дополнительных)")
+	equal(db.events_of_kind("random").size(), 64, "случайных событий")
+	equal(db.events_of_kind("chain").size(), 16, "шагов цепочек")
 	equal(db.events_of_kind("trigger").size(), 10, "триггерных событий")
 	equal(db.events_of_kind("story").size(), 7, "сюжетных событий")
 	equal(db.crises.size(), 4, "кризисных событий")
@@ -340,6 +342,74 @@ func test_save_load(db: ContentDB) -> void:
 	finished.end_turn()
 	check(finished.state.is_over(), "партия закончилась поражением")
 	check(not SaveGame.has_save(), "после конца партии сохранение стёрто")
+
+
+func test_chains(db: ContentDB) -> void:
+	suite("Цепочки событий")
+	var director := Director.new(db)
+
+	# Шаг цепочки не должен приходить сам по себе — только по ссылке
+	var state := GameState.new()
+	state.setup(db.config, 5)
+	var stray := ""
+	for i in 300:
+		var drawn := director._select_random(state)
+		if not drawn.is_empty() and String(drawn["kind"]) == "chain":
+			stray = String(drawn["code"])
+			break
+	equal(stray, "", "шаги цепочек не выпадают случайно")
+
+	# Цепочка А: «Плотина» -> «Переселение» -> «Вода поднялась»
+	var game := Game.new(db)
+	game.start(21)
+	for event in db.events_of_kind("story"):
+		game.state.mark_seen(String(event["code"]))  # сюжет не должен перебивать проверку
+	game.state.turn = 12
+
+	game.current_event = db.get_event("LXI")
+	game.current_scale = 1.0
+	game.state.phase = GameState.Phase.CHOICE
+	game.choose(1)
+	var scheduled_codes: Array = []
+	for entry in game.state.scheduled:
+		scheduled_codes.append(String(entry["trigger"]))
+	check(scheduled_codes.has("Ц-А1"), "выбор в «Плотине» взвёл следующий шаг цепочки")
+
+	var second := _run_until(game, "Ц-А1", 12)
+	check(second, "второй шаг цепочки пришёл сам")
+	if second:
+		equal(game.current_source, "scheduled", "шаг пришёл как последствие решения")
+		game.choose(1)
+		var third := _run_until(game, "Ц-А3", 12)
+		check(third, "третий шаг цепочки пришёл после второго")
+
+	# Каждый шаг должен куда-то вести или завершать цепочку
+	var dead_ends: Array = []
+	for event in db.events_of_kind("chain"):
+		var code := String(event["code"])
+		if code.ends_with("3") or code.ends_with("4"):
+			continue  # финалы цепочек продолжений не имеют
+		var leads := false
+		for choice in event["choices"]:
+			for hook in choice.get("hooks", []):
+				if String(hook["type"]) == "schedule":
+					leads = true
+		if not leads:
+			dead_ends.append(code)
+	equal(dead_ends, [], "промежуточные шаги ведут дальше")
+
+
+## Прокручивает ходы, пока не выпадет нужное событие. Возвращает, дождались ли.
+func _run_until(game: Game, code: String, limit: int) -> bool:
+	for i in limit:
+		game.end_turn()
+		var presented := game.begin_turn()
+		if presented.is_empty():
+			continue
+		if String(presented["code"]) == code:
+			return true
+		game.choose(_first_available(presented))
+	return false
 
 
 func test_full_playthrough(db: ContentDB) -> void:

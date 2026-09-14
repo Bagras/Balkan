@@ -42,6 +42,8 @@ func _run_many(policy: String, runs: int) -> Dictionary:
 	var crises_total := 0
 	var min_totals: Dictionary = {}
 	var gate_pass: Dictionary = {"стаб>=50": 0, "без>=50": 0, "под>=50": 0, "оон>=50": 0, "все четыре": 0}
+	var chain_depth: Dictionary = {"хотя бы один шаг": 0, "два шага": 0, "три и больше": 0}
+	var chain_steps_total := 0
 
 	for i in runs:
 		var result := _play(policy, i + 1)
@@ -57,6 +59,14 @@ func _run_many(policy: String, runs: int) -> Dictionary:
 		for code in result["triggers"]:
 			trigger_fires[code] = int(trigger_fires.get(code, 0)) + 1
 		crises_total += int(result["crises"])
+		var steps := int(result["chain_steps"])
+		chain_steps_total += steps
+		if steps >= 1:
+			chain_depth["хотя бы один шаг"] = int(chain_depth["хотя бы один шаг"]) + 1
+		if steps >= 2:
+			chain_depth["два шага"] = int(chain_depth["два шага"]) + 1
+		if steps >= 3:
+			chain_depth["три и больше"] = int(chain_depth["три и больше"]) + 1
 		for key in result["minimums"]:
 			min_totals[key] = int(min_totals.get(key, 0)) + int(result["minimums"][key])
 		var all_four := true
@@ -74,6 +84,7 @@ func _run_many(policy: String, runs: int) -> Dictionary:
 		"avg_random_seen": float(random_seen_total) / runs,
 		"avg_stats": stat_totals, "triggers": trigger_fires,
 		"avg_crises": float(crises_total) / runs, "min_stats": min_totals, "gates": gate_pass,
+		"chain_depth": chain_depth, "avg_chain_steps": float(chain_steps_total) / runs,
 	}
 
 
@@ -106,10 +117,15 @@ func _play(policy: String, seed_value: int) -> Dictionary:
 			break
 
 	var random_seen := 0
+	var chain_steps := 0
 	for entry in game.state.history:
 		var event := db.get_event(String(entry["event"]))
-		if not event.is_empty() and event.get("kind", "") == "random":
+		if event.is_empty():
+			continue
+		if event.get("kind", "") == "random":
 			random_seen += 1
+		elif event.get("kind", "") == "chain":
+			chain_steps += 1
 
 	return {
 		"ending": game.get_ending(),
@@ -119,6 +135,7 @@ func _play(policy: String, seed_value: int) -> Dictionary:
 		"random_seen": random_seen,
 		"triggers": triggers,
 		"crises": crises,
+		"chain_steps": chain_steps,
 		"minimums": minimums,
 	}
 
@@ -231,6 +248,12 @@ func _report(policy: String, data: Dictionary) -> void:
 	for gate in data["gates"]:
 		gate_parts.append("%s %.0f%%" % [gate, 100.0 * float(data["gates"][gate]) / runs])
 	print("  доля партий со шкалой не ниже 50: " + ", ".join(gate_parts))
+
+	var chain_parts: Array = []
+	for key in data["chain_depth"]:
+		chain_parts.append("%s %.0f%%" % [key, 100.0 * float(data["chain_depth"][key]) / runs])
+	print("  цепочки (доля партий): " + ", ".join(chain_parts)
+			+ "   шагов за партию: %.1f" % data["avg_chain_steps"])
 
 	var trigger_parts: Array = []
 	var codes: Array = data["triggers"].keys()
