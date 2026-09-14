@@ -12,6 +12,10 @@ var current_event: Dictionary = {}
 var current_scale: float = 1.0
 var current_source: String = ""
 
+## Автосохранение включает интерфейс. Симулятор и тесты играют без него:
+## иначе на каждую партию приходились бы десятки записей на диск.
+var autosave: bool = false
+
 
 func _init(content_db: ContentDB) -> void:
 	db = content_db
@@ -58,6 +62,7 @@ func begin_turn() -> Dictionary:
 	else:
 		state.consecutive_triggers = 0
 
+	_autosave()
 	return describe_current()
 
 
@@ -116,6 +121,7 @@ func choose(index: int) -> Dictionary:
 		state.final_choice = index
 
 	state.phase = GameState.Phase.CABINET
+	_autosave()
 	return {"outcome": String(choice["outcome"]), "applied": applied}
 
 
@@ -170,6 +176,7 @@ func do_action(id: String) -> Dictionary:
 
 	state.acted_this_turn = true
 	state.action_cooldowns[id] = state.turn + int(action["cooldown"])
+	_autosave()
 	return {"applied": applied, "title": String(action["title"])}
 
 
@@ -192,6 +199,7 @@ func end_turn() -> Dictionary:
 		else:
 			state.defeat_reason = state.crisis_stat
 			state.phase = GameState.Phase.OVER
+			_autosave()
 			return get_ending()
 	else:
 		for key in db.fatal_stats():
@@ -201,10 +209,25 @@ func end_turn() -> Dictionary:
 
 	if state.turn >= int(db.config["mandate_turns"]) and state.is_seen("С-7"):
 		state.phase = GameState.Phase.OVER
+		_autosave()
 		return get_ending()
 
 	state.phase = GameState.Phase.READY
+	_autosave()
 	return {}
+
+
+func _autosave() -> void:
+	if not autosave:
+		return
+	if state.phase == GameState.Phase.OVER:
+		# Законченную партию продолжать нечего — иначе «Продолжить»
+		# воскрешало бы уже отыгранный мандат.
+		SaveGame.clear()
+		return
+	var err := SaveGame.save(self)
+	if not err.is_empty():
+		push_warning("автосохранение не удалось: " + err)
 
 
 # --- концовки ----------------------------------------------------------------

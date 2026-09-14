@@ -3,7 +3,7 @@ extends Control
 ## Интерфейс партии. Строится кодом — так его проще перекрашивать и
 ## не нужно синхронизировать .tscn с логикой. Ядро (Game) про UI не знает.
 
-enum Mode { EVENT, OUTCOME, ENDING }
+enum Mode { TITLE, EVENT, OUTCOME, ENDING }
 
 var db: ContentDB
 var game: Game
@@ -17,6 +17,9 @@ var _body: RichTextLabel
 var _choice_box: VBoxContainer
 var _cabinet_box: VBoxContainer
 var _footer: HBoxContainer
+var _journal_button: Button
+var _saved_body := ""
+var _journal_open := false
 
 
 func _ready() -> void:
@@ -26,13 +29,68 @@ func _ready() -> void:
 		push_error(err)
 		return
 	game = Game.new(db)
+	game.autosave = true
 	_build_layout()
-	_new_game()
+	if SaveGame.has_save():
+		_show_title()
+	else:
+		_new_game()
 
 
 func _new_game() -> void:
+	SaveGame.clear()
 	game.start(0)
+	_close_journal()
 	_advance_turn()
+
+
+## Экран выбора: продолжить прерванный мандат или начать заново.
+func _show_title() -> void:
+	mode = Mode.TITLE
+	_clear(_choice_box)
+	_clear(_cabinet_box)
+	_clear(_footer)
+	_journal_button.visible = false
+	_turn_label.text = "Балканский протекторат"
+	_source_label.text = "Мандат прерван на середине"
+	_title_label.text = "Незаконченный мандат"
+	_body.text = "В резиденции остались бумаги предыдущей сессии. Мандат не дослушан до конца — можно вернуться к нему или начать всё заново.\n\n[color=#%s]Новый мандат стирает сохранение без возможности вернуться.[/color]" % Palette.TEXT_DIM.to_html(false)
+	_refresh_stats()
+
+	var resume := _make_wide_button("Продолжить мандат", true)
+	resume.pressed.connect(_on_resume)
+	_choice_box.add_child(resume)
+	var fresh := _make_wide_button("Новый мандат", false)
+	fresh.pressed.connect(_new_game)
+	_choice_box.add_child(fresh)
+
+
+func _on_resume() -> void:
+	var err := SaveGame.load_into(game)
+	if not err.is_empty():
+		push_warning(err)
+		_new_game()
+		return
+	game.autosave = true
+	_close_journal()
+	if game.state.phase == GameState.Phase.CHOICE and not game.current_event.is_empty():
+		mode = Mode.EVENT
+		_render_event(game.describe_current())
+	else:
+		_show_cabinet("Вы возвращаетесь к делам. Ход не закрыт.")
+
+
+func _make_wide_button(text: String, accent: bool) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	button.add_theme_font_size_override("font_size", 15)
+	button.add_theme_color_override("font_color", Palette.TEXT)
+	var edge := Palette.ACCENT if accent else Palette.PANEL_EDGE
+	button.add_theme_stylebox_override("normal", Palette.button_style(Palette.PANEL, edge))
+	button.add_theme_stylebox_override("hover", Palette.button_style(Palette.PANEL_EDGE, Palette.ACCENT))
+	button.add_theme_stylebox_override("pressed", Palette.button_style(Palette.PANEL_EDGE, Palette.ACCENT))
+	return button
 
 
 # --- построение интерфейса ---------------------------------------------------
@@ -78,7 +136,64 @@ func _build_sidebar() -> Control:
 	_stats_box = VBoxContainer.new()
 	_stats_box.add_theme_constant_override("separation", 3)
 	column.add_child(_stats_box)
+
+	var filler := Control.new()
+	filler.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	column.add_child(filler)
+
+	_journal_button = Button.new()
+	_journal_button.text = "Журнал решений"
+	_journal_button.add_theme_font_size_override("font_size", 12)
+	_journal_button.add_theme_color_override("font_color", Palette.TEXT_DIM)
+	_journal_button.add_theme_stylebox_override("normal", Palette.button_style(Palette.PANEL, Palette.PANEL_EDGE))
+	_journal_button.add_theme_stylebox_override("hover", Palette.button_style(Palette.PANEL_EDGE, Palette.ACCENT))
+	_journal_button.pressed.connect(_toggle_journal)
+	column.add_child(_journal_button)
 	return panel
+
+
+## Журнал открывается поверх текста события: выборы и кабинет прячутся,
+## но не пересобираются — вернуться нужно ровно туда, где был игрок.
+func _toggle_journal() -> void:
+	if _journal_open:
+		_close_journal()
+		return
+	_journal_open = true
+	_saved_body = _body.text
+	_journal_button.text = "← Вернуться"
+	_choice_box.visible = false
+	_cabinet_box.visible = false
+	_footer.visible = false
+	_body.text = _journal_text()
+
+
+func _close_journal() -> void:
+	if not _journal_open:
+		return
+	_journal_open = false
+	_journal_button.text = "Журнал решений"
+	_choice_box.visible = true
+	_cabinet_box.visible = true
+	_footer.visible = true
+	_body.text = _saved_body
+
+
+func _journal_text() -> String:
+	if game.state.history.is_empty():
+		return "[color=#%s]Решений пока не принято.[/color]" % Palette.TEXT_DIM.to_html(false)
+	var dim := Palette.TEXT_DIM.to_html(false)
+	var lines: Array = ["[font_size=13]"]
+	for entry in game.state.history:
+		var code := String(entry["event"])
+		var mark := ""
+		if code.begins_with("С-"):
+			mark = " [color=#%s]· главная линия[/color]" % Palette.ACCENT.to_html(false)
+		elif code.begins_with("Т-") or code.begins_with("CR-") or code.begins_with("P-"):
+			mark = " [color=#%s]· последствие[/color]" % dim
+		lines.append("[color=%s]Ход %d.[/color]  [b]%s[/b]%s\n%s\n" % [
+			"#" + dim, int(entry["turn"]), String(entry["title"]), mark, String(entry["choice_text"])])
+	lines.append("[/font_size]")
+	return "\n".join(lines)
 
 
 func _build_main_column() -> Control:
@@ -125,6 +240,9 @@ func _build_main_column() -> Control:
 # --- отрисовка состояния -----------------------------------------------------
 
 func _refresh_stats() -> void:
+	if game.state == null:
+		_clear(_stats_box)
+		return
 	# queue_free() отложен до конца кадра — без remove_child строки
 	# накладываются друг на друга при нескольких обновлениях за кадр
 	_clear(_stats_box)
@@ -194,7 +312,12 @@ func _advance_turn() -> void:
 		_show_cabinet("Тихий ход. Событий нет — есть только текущие дела.")
 		return
 
+	_render_event(presented)
+
+
+func _render_event(presented: Dictionary) -> void:
 	mode = Mode.EVENT
+	_journal_button.visible = true
 	_turn_label.text = "Ход %d / %d" % [game.state.turn, int(db.config["mandate_turns"])]
 	_source_label.text = _source_caption(String(presented["source"]))
 	_title_label.text = String(presented["title"])
@@ -272,6 +395,7 @@ func _format_deltas(applied: Dictionary) -> String:
 # --- кабинет -----------------------------------------------------------------
 
 func _show_cabinet(body_text: String) -> void:
+	_journal_button.visible = true
 	_body.text = body_text
 	_refresh_stats()
 	_clear(_cabinet_box)
@@ -350,6 +474,7 @@ func _on_end_turn() -> void:
 
 func _show_ending(ending: Dictionary) -> void:
 	mode = Mode.ENDING
+	_close_journal()
 	_clear(_choice_box)
 	_clear(_cabinet_box)
 	_clear(_footer)

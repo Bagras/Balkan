@@ -2,3 +2,6 @@
 .godot/
 # Скриншоты, снятые tools/screenshot.gd
 shot_*.png
+shot_*.png.import
+# Собранные бинарники — в репозиторий не кладём
+build/

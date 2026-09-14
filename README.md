@@ -10,11 +10,16 @@
 
 Открыть папку проекта в Godot 4.3 и нажать F5. Главная сцена — `scenes/main.tscn`.
 
+## Сборка
+
+Один файл под Linux или Windows, без Godot у игрока — см. [BUILD.md](BUILD.md).
+
 ## Проверки
 
 ```bash
 godot --headless --path . --script res://tests/run_tests.gd   # тесты ядра
-godot --headless --path . --script res://tests/ui_smoke.gd    # прогон партии по кнопкам
+godot --headless --path . --script res://tests/ui_smoke.gd    # прогон партии по кнопкам,
+                                                              # журнал и продолжение
 godot --headless --path . --script res://tools/simulate.gd -- 500  # баланс
 ```
 
@@ -32,6 +37,7 @@ godot --headless --path . --script res://tools/simulate.gd -- 500  # балан�
 | `scripts/ui/` | интерфейс, целиком собирается кодом |
 | `tools/parse_docx.py` | генератор событий из `.docx` и из текстовых файлов |
 | `tools/paths.gd` | проверка достижимости каждой концовки |
+| `scripts/core/save_game.gd` | автосохранение партии в `user://save.json` |
 
 ## Как править контент
 

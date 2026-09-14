@@ -4,7 +4,7 @@ extends SceneTree
 ## виртуальный дисплей, headless-режим не рисует:
 ##   xvfb-run -a -s "-screen 0 1280x800x24" godot --path . \
 ##     --resolution 1280x800 --script res://tools/screenshot.gd
-## Кладёт shot_event.png и shot_cabinet.png в корень проекта.
+## Кладёт shot_event.png, shot_cabinet.png и shot_journal.png в корень проекта.
 
 var _main: Control
 var _frames := 0
@@ -33,6 +33,21 @@ func _process(_delta: float) -> bool:
 	if _frames == 7:
 		var img := root.get_texture().get_image()
 		img.save_png("res://shot_cabinet.png")
+		# ещё несколько ходов, чтобы в журнале накопились записи
+		for i in 4:
+			for child in _buttons(_main._choice_box):
+				if not child.disabled:
+					child.pressed.emit()
+					break
+			for child in _buttons(_main._footer):
+				if not child.disabled:
+					child.pressed.emit()
+					break
+		_main._journal_button.pressed.emit()
+		return false
+	if _frames == 10:
+		var img := root.get_texture().get_image()
+		img.save_png("res://shot_journal.png")
 		return true
 	return false
 

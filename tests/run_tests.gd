@@ -26,6 +26,7 @@ func _initialize() -> void:
 	test_actions(db)
 	test_patron_drift(db)
 	test_turn_pressure(db)
+	test_save_load(db)
 	test_full_playthrough(db)
 	test_determinism(db)
 	test_content_schema(db)
@@ -290,6 +291,55 @@ func test_turn_pressure(db: ContentDB) -> void:
 		director.apply_turn_pressure(fresh)
 	check(fresh.get_stat("un") < un_start - 5, "за 20 ходов одобрение ООН заметно тает (%d -> %d)"
 			% [un_start, fresh.get_stat("un")])
+
+
+func test_save_load(db: ContentDB) -> void:
+	suite("Сохранение партии")
+	SaveGame.clear()
+	check(not SaveGame.has_save(), "перед началом сохранения нет")
+
+	# играем несколько ходов, что-то тратим в кабинете
+	var game := Game.new(db)
+	game.start(77)
+	for i in 6:
+		var presented := game.begin_turn()
+		if not presented.is_empty():
+			game.choose(_first_available(presented))
+		if i == 2:
+			game.do_action("act_curfew")
+		game.end_turn()
+
+	equal(SaveGame.save(game), "", "сохранение записалось")
+	check(SaveGame.has_save(), "файл сохранения существует")
+
+	var restored := Game.new(db)
+	equal(SaveGame.load_into(restored), "", "сохранение загрузилось")
+	equal(restored.state.turn, game.state.turn, "ход восстановлен")
+	equal(restored.state.stats, game.state.stats, "шкалы восстановлены")
+	equal(restored.state.history.size(), game.state.history.size(), "история решений восстановлена")
+	equal(restored.state.flags, game.state.flags, "флаги восстановлены")
+	equal(restored.state.scheduled.size(), game.state.scheduled.size(), "отложенные триггеры восстановлены")
+	equal(restored.state.action_cooldowns, game.state.action_cooldowns, "откаты кабинета восстановлены")
+
+	# продолженная партия должна идти той же случайной веткой, что и исходная
+	var original_next := game.begin_turn()
+	var restored_next := restored.begin_turn()
+	equal(String(restored_next.get("code", "")), String(original_next.get("code", "")),
+			"продолжение выпадает тем же событием, что и исходная партия")
+
+	# законченная партия сохранение не оставляет
+	var finished := Game.new(db)
+	finished.autosave = true
+	finished.start(78)
+	finished.begin_turn()
+	finished.choose(1)
+	finished.state.stats["un"] = 0
+	finished.end_turn()
+	finished.begin_turn()
+	finished.choose(3)
+	finished.end_turn()
+	check(finished.state.is_over(), "партия закончилась поражением")
+	check(not SaveGame.has_save(), "после конца партии сохранение стёрто")
 
 
 func test_full_playthrough(db: ContentDB) -> void:

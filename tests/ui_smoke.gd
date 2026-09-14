@@ -63,8 +63,75 @@ func _run() -> void:
 	else:
 		print("ok   панель показателей отрисована (%d строк)" % main._stats_box.get_child_count())
 
+	_check_journal_and_resume(packed)
+
 	print("\n--- дымовой тест интерфейса: %s ---" % ("провален" if _errors > 0 else "пройден"))
 	quit(1 if _errors > 0 else 0)
+
+
+## Журнал и продолжение прерванной партии: экраны, до которых обычный
+## прогон партии не доходит.
+func _check_journal_and_resume(packed: PackedScene) -> void:
+	SaveGame.clear()
+	var main: Control = packed.instantiate()
+	root.add_child(main)
+
+	# играем пару ходов, чтобы в журнале что-то появилось и записался автосейв
+	for i in 3:
+		_press_first_enabled(main._choice_box)
+		_press_first_enabled(main._footer)
+
+	var body_before: String = main._body.text
+	main._journal_button.pressed.emit()
+	if main._body.text == body_before:
+		print("FAIL журнал не изменил содержимое экрана")
+		_errors += 1
+	elif not main._body.text.contains("Ход"):
+		print("FAIL в журнале нет записей о ходах")
+		_errors += 1
+	else:
+		print("ok   журнал открывается и показывает принятые решения")
+	if main._choice_box.visible:
+		print("FAIL при открытом журнале выборы остались видимы")
+		_errors += 1
+
+	main._journal_button.pressed.emit()
+	if main._body.text != body_before or not main._choice_box.visible:
+		print("FAIL возврат из журнала не восстановил экран")
+		_errors += 1
+	else:
+		print("ok   возврат из журнала восстанавливает прежний экран")
+
+	if not SaveGame.has_save():
+		print("FAIL партия не сохранилась автоматически")
+		_errors += 1
+		return
+	print("ok   партия сохранена автоматически")
+
+	var turn_before: int = main.game.state.turn
+	var stats_before: Dictionary = main.game.state.stats.duplicate()
+	main.queue_free()
+
+	# новая сцена при наличии сейва должна предложить продолжить
+	var second: Control = packed.instantiate()
+	root.add_child(second)
+	if second.mode != second.Mode.TITLE:
+		print("FAIL при наличии сохранения не показан экран продолжения")
+		_errors += 1
+		return
+	print("ok   при наличии сохранения показан экран продолжения")
+
+	if not _press_first_enabled(second._choice_box):
+		print("FAIL кнопка продолжения недоступна")
+		_errors += 1
+		return
+	if second.game.state.turn != turn_before or second.game.state.stats != stats_before:
+		print("FAIL продолженная партия не совпадает с сохранённой (ход %d против %d)"
+				% [second.game.state.turn, turn_before])
+		_errors += 1
+	else:
+		print("ok   продолженная партия совпадает с сохранённой (ход %d)" % turn_before)
+	SaveGame.clear()
 
 
 ## Нажимает первую активную кнопку в контейнере. Возвращает, нашлась ли такая.
