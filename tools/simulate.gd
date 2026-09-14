@@ -199,8 +199,8 @@ func _maybe_act(game: Game, policy: String) -> void:
 func _report(policy: String, data: Dictionary) -> void:
 	var runs := int(data["runs"])
 	print("=== стратегия: %s ===" % policy)
-	print("  средняя длительность: %.1f ходов, случайных событий за партию: %.1f из 30"
-			% [data["avg_turns"], data["avg_random_seen"]])
+	print("  средняя длительность: %.1f ходов, случайных событий за партию: %.1f из %d"
+			% [data["avg_turns"], data["avg_random_seen"], db.events_of_kind("random").size()])
 
 	var ending_lines: Array = []
 	for title in data["endings"]:

@@ -21,11 +21,18 @@ STAT_MAP = {
     "БЕЗ": "security", "ПОД": "support", "ВЛ": "influence",
     "Л-серб": "loyalty_serb", "Л-алб": "loyalty_alb", "Л-грек": "loyalty_greek",
 }
-ROMAN = {"I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6, "VII": 7, "VIII": 8,
-         "IX": 9, "X": 10, "XI": 11, "XII": 12, "XIII": 13, "XIV": 14, "XV": 15,
-         "XVI": 16, "XVII": 17, "XVIII": 18, "XIX": 19, "XX": 20, "XXI": 21,
-         "XXII": 22, "XXIII": 23, "XXIV": 24, "XXV": 25, "XXVI": 26, "XXVII": 27,
-         "XXVIII": 28, "XXIX": 29, "XXX": 30}
+ROMAN_VALUES = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100, "D": 500, "M": 1000}
+
+
+def roman_to_int(text):
+    """XXXI -> 31. Словаря на 30 позиций не хватает: пул событий растёт."""
+    total, highest = 0, 0
+    for char in reversed(text):
+        value = ROMAN_VALUES[char]
+        total += value if value >= highest else -value
+        highest = max(highest, value)
+    return total
+
 
 CATEGORY_MAP = {
     "Межэтнические": "ethnic", "Экономические": "economic", "Политические": "political",
@@ -60,13 +67,17 @@ REQUIREMENT_PATCHES = {
 }
 
 
-def docx_to_lines(path):
-    with zipfile.ZipFile(path) as z:
-        xml = z.read("word/document.xml").decode("utf-8")
-    xml = re.sub(r"</w:p>", "\n", xml)
-    xml = re.sub(r"<w:tab/>", "\t", xml)
-    xml = re.sub(r"<[^>]+>", "", xml)
-    text = html.unescape(xml)
+def source_to_lines(path):
+    """Читает .docx или простой .txt в том же формате — формат авторский, один."""
+    if path.lower().endswith(".docx"):
+        with zipfile.ZipFile(path) as z:
+            xml = z.read("word/document.xml").decode("utf-8")
+        xml = re.sub(r"</w:p>", "\n", xml)
+        xml = re.sub(r"<w:tab/>", "\t", xml)
+        xml = re.sub(r"<[^>]+>", "", xml)
+        text = html.unescape(xml)
+    else:
+        text = open(path, encoding="utf-8").read()
     # нормализуем типографику, чтобы дальше не ловить оба варианта минуса
     text = text.replace("−", "-").replace("–", "-").replace("‑", "-")
     return [ln.strip() for ln in text.split("\n")]
@@ -191,7 +202,7 @@ def parse_choice(line, event_code):
     m = re.match(r"^([IVX]+)\.\s+(.*)$", line)
     if not m:
         return None
-    index, rest = ROMAN[m.group(1)], m.group(2)
+    index, rest = roman_to_int(m.group(1)), m.group(2)
 
     note = None
     tail = re.search(r"\{([^{}]*)\}\s*$", rest)
@@ -268,7 +279,7 @@ def parse(lines):
                 turn_window = [nums[0], nums[-1]]
                 title = title[: tw.start()].strip()
             current = {
-                "id": ident if kind != "random" else f"R-{ROMAN[ident]:02d}",
+                "id": ident if kind != "random" else f"R-{roman_to_int(ident):02d}",
                 "code": ident, "kind": kind, "category": category,
                 "title": title, "turn_window": turn_window,
                 "source": None, "design_note": None, "description": "", "choices": [],
@@ -299,7 +310,7 @@ def parse(lines):
 
 def main():
     src, dst = sys.argv[1], sys.argv[2]
-    events = parse(docx_to_lines(src))
+    events = parse(source_to_lines(src))
     with open(dst, "w", encoding="utf-8") as f:
         json.dump({"events": events}, f, ensure_ascii=False, indent=2)
 

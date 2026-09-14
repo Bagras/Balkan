@@ -63,8 +63,8 @@ func equal(actual, expected, what: String) -> void:
 
 func test_content_loads(db: ContentDB) -> void:
 	suite("Загрузка контента")
-	equal(db.events.size(), 47, "всего событий из .docx")
-	equal(db.events_of_kind("random").size(), 30, "случайных событий")
+	equal(db.events.size(), 56, "всего событий (47 из .docx + 9 дополнительных)")
+	equal(db.events_of_kind("random").size(), 39, "случайных событий")
 	equal(db.events_of_kind("trigger").size(), 10, "триггерных событий")
 	equal(db.events_of_kind("story").size(), 7, "сюжетных событий")
 	equal(db.crises.size(), 4, "кризисных событий")

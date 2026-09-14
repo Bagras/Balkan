@@ -28,6 +28,14 @@ func load_all() -> String:
 		return ev
 	events = ev["events"]
 
+	# Дополнительный пул: пишется в том же авторском формате (events_extra.txt)
+	# и подмешивается к основному. Файла может не быть — это не ошибка.
+	if FileAccess.file_exists(CONTENT_DIR + "events_extra.json"):
+		var extra = _read_json(CONTENT_DIR + "events_extra.json")
+		if extra is String:
+			return extra
+		events.append_array(extra["events"])
+
 	var cr = _read_json(CONTENT_DIR + "crises.json")
 	if cr is String:
 		return cr
