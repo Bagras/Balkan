@@ -1,0 +1,199 @@
+#!/usr/bin/env python3
+"""Конвертер исходного .docx с ивентами в структурированный content/events.json.
+
+Формат исходника (см. docs/DESIGN.md):
+    № I. Заголовок            — рандомный ивент
+    Т-1. Заголовок            — триггерный ивент
+    С-1. Заголовок (ход 1)    — главносюжетный ивент
+    Источник: ...             — только у триггерных
+    <описание одним абзацем>
+    ВЫБОРЫ:
+    I. Текст выбора. {эффекты. Итоговый текст:} исход {постпримечание}
+"""
+import html
+import json
+import re
+import sys
+import zipfile
+
+STAT_MAP = {
+    "СТАБ": "stability", "ООН": "un", "ЛИЧ": "personal",
+    "БЕЗ": "security", "ПОД": "support", "ВЛ": "influence",
+    "Л-серб": "loyalty_serb", "Л-алб": "loyalty_alb", "Л-грек": "loyalty_greek",
+}
+ROMAN = {"I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6, "VII": 7, "VIII": 8,
+         "IX": 9, "X": 10, "XI": 11, "XII": 12, "XIII": 13, "XIV": 14, "XV": 15,
+         "XVI": 16, "XVII": 17, "XVIII": 18, "XIX": 19, "XX": 20, "XXI": 21,
+         "XXII": 22, "XXIII": 23, "XXIV": 24, "XXV": 25, "XXVI": 26, "XXVII": 27,
+         "XXVIII": 28, "XXIX": 29, "XXX": 30}
+
+CATEGORY_MAP = {
+    "Межэтнические": "ethnic", "Экономические": "economic", "Политические": "political",
+    "Внешнеполитические": "foreign", "Силовые": "security", "Силовой": "security",
+}
+
+
+def docx_to_lines(path):
+    with zipfile.ZipFile(path) as z:
+        xml = z.read("word/document.xml").decode("utf-8")
+    xml = re.sub(r"</w:p>", "\n", xml)
+    xml = re.sub(r"<w:tab/>", "\t", xml)
+    xml = re.sub(r"<[^>]+>", "", xml)
+    text = html.unescape(xml)
+    # нормализуем типографику, чтобы дальше не ловить оба варианта минуса
+    text = text.replace("−", "-").replace("–", "-").replace("‑", "-")
+    return [ln.strip() for ln in text.split("\n")]
+
+
+def parse_effects(block):
+    """'+3 ООН, -2 БЕЗ' -> ({'un': 3, 'security': -2}, [нераспознанные куски])."""
+    effects, unresolved = {}, []
+    for part in re.split(r"[,;]", block):
+        part = part.strip().rstrip(".")
+        if not part:
+            continue
+        m = re.match(r"^([+-])\s*(\d+)\s+(.+)$", part)
+        if not m:
+            unresolved.append(part)
+            continue
+        sign, value, stat_raw = m.group(1), int(m.group(2)), m.group(3).strip()
+        delta = value if sign == "+" else -value
+        key = STAT_MAP.get(stat_raw)
+        if key is None:
+            # 'ПОД(север)', 'Л-серб или Л-грек (...)', 'по профильной шкале ветки'
+            base = re.match(r"^(Л-серб|Л-алб|Л-грек|СТАБ|ООН|ЛИЧ|БЕЗ|ПОД|ВЛ)\b", stat_raw)
+            if base and "или" not in stat_raw:
+                key = STAT_MAP[base.group(1)]
+                effects[key] = effects.get(key, 0) + delta
+                unresolved.append(f"{part} [уточнение: {stat_raw}]")
+            else:
+                unresolved.append(part)
+            continue
+        effects[key] = effects.get(key, 0) + delta
+    return effects, unresolved
+
+
+def parse_choice(line):
+    m = re.match(r"^([IVX]+)\.\s+(.*)$", line)
+    if not m:
+        return None
+    index, rest = ROMAN[m.group(1)], m.group(2)
+
+    note = None
+    tail = re.search(r"\{([^{}]*)\}\s*$", rest)
+    brace_blocks = re.findall(r"\{([^{}]*)\}", rest)
+    if tail and "Итоговый текст" not in tail.group(1) and len(brace_blocks) > 1:
+        note = tail.group(1).strip()
+        rest = rest[: tail.start()].strip()
+
+    split = re.search(r"\{(.*?)\.?\s*Итоговый текст:\s*\}", rest)
+    if split:
+        head = rest[: split.start()].strip()
+        raw_effects = split.group(1).strip()
+        outcome = rest[split.end():].strip()
+    else:  # С-7: условия доступности без численных эффектов
+        only = re.search(r"\{(.*?)\}", rest)
+        head = rest[: only.start()].strip() if only else rest
+        raw_effects = only.group(1).strip() if only else ""
+        outcome = rest[only.end():].strip() if only else ""
+
+    requirement = None
+    req = re.match(r"^((?:Требует|Доступно)[^.]*\.?)\s*(.*)$", raw_effects)
+    if req:
+        requirement, raw_effects = req.group(1).strip(), req.group(2).strip()
+
+    effects, unresolved = parse_effects(raw_effects)
+    return {
+        "index": index,
+        "text": head.rstrip("."),
+        "effects": effects,
+        "outcome": outcome,
+        "requirement": requirement,
+        "note": note,
+        "raw_effects": raw_effects,
+        "unresolved": unresolved,
+    }
+
+
+def parse(lines):
+    events, current, category, kind = [], None, None, None
+    expecting_choices = False
+
+    for line in lines:
+        if not line:
+            continue
+        if line == "РАНДОМНЫЕ ИВЕНТЫ":
+            kind = "random"; continue
+        if line == "ТРИГГЕРНЫЕ ИВЕНТЫ":
+            kind = "trigger"; continue
+        if line == "ГЛАВНОСЮЖЕТНЫЕ ИВЕНТЫ":
+            kind = "story"; continue
+        if line.startswith("Черновая рамка концовок"):
+            break
+
+        cat = re.match(r"^(Межэтнические|Экономические|Политические|Внешнеполитические|Силовые|Силовой)\s*\(\d+\)$", line)
+        if cat:
+            category = CATEGORY_MAP[cat.group(1)]; continue
+
+        head = (re.match(r"^№\s+([IVX]+)\.\s+(.+)$", line)
+                or re.match(r"^(Т-\d+)\.\s+(.+)$", line)
+                or re.match(r"^(С-\d+)\.\s+(.+)$", line))
+        if head and kind:
+            ident, title = head.group(1), head.group(2).strip()
+            turn_window = None
+            tw = re.search(r"\(ход\s+([\d–\-—]+)\)\s*$", title)
+            if tw:
+                nums = [int(n) for n in re.findall(r"\d+", tw.group(1))]
+                turn_window = [nums[0], nums[-1]]
+                title = title[: tw.start()].strip()
+            current = {
+                "id": ident if kind != "random" else f"R-{ROMAN[ident]:02d}",
+                "code": ident, "kind": kind, "category": category,
+                "title": title, "turn_window": turn_window,
+                "source": None, "description": "", "choices": [],
+            }
+            events.append(current)
+            expecting_choices = False
+            continue
+
+        if current is None:
+            continue
+        if line.startswith("Источник:"):
+            current["source"] = line[len("Источник:"):].strip(); continue
+        if line == "ВЫБОРЫ:":
+            expecting_choices = True; continue
+        if expecting_choices:
+            choice = parse_choice(line)
+            if choice:
+                current["choices"].append(choice)
+            continue
+        if not current["description"]:
+            current["description"] = line
+        else:
+            current["description"] += "\n" + line
+    return events
+
+
+def main():
+    src, dst = sys.argv[1], sys.argv[2]
+    events = parse(docx_to_lines(src))
+    with open(dst, "w", encoding="utf-8") as f:
+        json.dump({"events": events}, f, ensure_ascii=False, indent=2)
+
+    by_kind = {}
+    for e in events:
+        by_kind[e["kind"]] = by_kind.get(e["kind"], 0) + 1
+    choices = sum(len(e["choices"]) for e in events)
+    print(f"событий: {len(events)} {by_kind}, выборов: {choices}")
+    for e in events:
+        if len(e["choices"]) != 3:
+            print(f"  !! {e['code']} {e['title']}: выборов {len(e['choices'])}")
+        if not e["description"]:
+            print(f"  !! {e['code']} {e['title']}: пустое описание")
+        for c in e["choices"]:
+            for u in c["unresolved"]:
+                print(f"  ?  {e['code']}.{c['index']}: {u}")
+
+
+if __name__ == "__main__":
+    main()
