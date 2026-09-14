@@ -20,6 +20,8 @@ STAT_MAP = {
     "СТАБ": "stability", "ООН": "un", "ЛИЧ": "personal",
     "БЕЗ": "security", "ПОД": "support", "ВЛ": "influence",
     "Л-серб": "loyalty_serb", "Л-алб": "loyalty_alb", "Л-грек": "loyalty_greek",
+    # Влияние соседей-патронов: события могут двигать его напрямую
+    "Белград": "patron_belgrade", "Тирана": "patron_tirana", "Афины": "patron_athens",
 }
 ROMAN_VALUES = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100, "D": 500, "M": 1000}
 
@@ -99,7 +101,7 @@ def parse_effects(block):
         key = STAT_MAP.get(stat_raw)
         if key is None:
             # 'ПОД(север)', 'Л-серб или Л-грек (...)', 'по профильной шкале ветки'
-            base = re.match(r"^(Л-серб|Л-алб|Л-грек|СТАБ|ООН|ЛИЧ|БЕЗ|ПОД|ВЛ)\b", stat_raw)
+            base = re.match(r"^(Л-серб|Л-алб|Л-грек|СТАБ|ООН|ЛИЧ|БЕЗ|ПОД|ВЛ|Белград|Тирана|Афины)\b", stat_raw)
             if base and "или" not in stat_raw:
                 key = STAT_MAP[base.group(1)]
                 effects[key] = effects.get(key, 0) + delta

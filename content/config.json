@@ -70,14 +70,14 @@
     "patron_tirana": {
       "label": "Тирана",
       "short": "Тирана",
-      "start": 40,
+      "start": 45,
       "fatal": false,
       "group": "patron"
     },
     "patron_athens": {
       "label": "Афины",
       "short": "Афины",
-      "start": 35,
+      "start": 45,
       "fatal": false,
       "group": "patron"
     }
@@ -97,21 +97,22 @@
     }
   },
   "patron_drift": {
-    "neutral_band": 15,
-    "divisor": 10,
+    "neutral_band": 10,
+    "divisor": 5,
     "min": -1,
     "max": 2
   },
   "patron_trigger": {
-    "influence_min": 65,
-    "loyalty_high": 62,
-    "loyalty_low": 38
+    "influence_min": 55,
+    "loyalty_high": 60,
+    "loyalty_low": 42
   },
   "trigger_rules": {
     "max_per_turn": 1,
     "max_consecutive": 2,
-    "same_trigger_cooldown": 6,
-    "corruption_threshold": 40
+    "same_trigger_cooldown": 8,
+    "corruption_threshold": 40,
+    "max_firings": 2
   },
   "thresholds": {
     "critical": 20,

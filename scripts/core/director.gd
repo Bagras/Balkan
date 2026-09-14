@@ -115,7 +115,14 @@ func _select_trigger(state: GameState) -> Dictionary:
 	var rules: Dictionary = db.config["trigger_rules"]
 	var cooldown := int(rules["same_trigger_cooldown"])
 
-	# 1. Отложенные триггеры: срок подошёл — выдаём, это обещание, данное игроку.
+	# 1. Патронское событие, которое ещё ни разу не выпадало, идёт первым:
+	# очередь отложенных почти всегда занята цепочками, и механика патронов
+	# без этого приоритета не показывается игроку вовсе.
+	var fresh_patron := _select_patron(state, true)
+	if not fresh_patron.is_empty():
+		return fresh_patron
+
+	# 2. Отложенные триггеры: срок подошёл — выдаём, это обещание, данное игроку.
 	var due: Array = []
 	for entry in state.scheduled:
 		if int(entry["turn"]) <= state.turn and _cooled_down(state, String(entry["trigger"]), cooldown):
@@ -131,12 +138,12 @@ func _select_trigger(state: GameState) -> Dictionary:
 				"source": "scheduled",
 			}
 
-	# 2. Патронские события: влияние выше порога, знак задаёт лояльность общины.
-	var patron := _select_patron(state)
+	# 3. Патронские события, выпадавшие раньше: на общих основаниях.
+	var patron := _select_patron(state, false)
 	if not patron.is_empty():
 		return patron
 
-	# 3. Пороговые триггеры: взвешенный выбор среди тех, чьё условие выполнено.
+	# 4. Пороговые триггеры: взвешенный выбор среди тех, чьё условие выполнено.
 	var eligible: Array = []
 	var weights: Array = []
 	for code in db.config["trigger_conditions"]:
@@ -155,13 +162,15 @@ func _select_trigger(state: GameState) -> Dictionary:
 	return {"event": picked, "scale": 1.0, "source": "threshold"}
 
 
-func _select_patron(state: GameState) -> Dictionary:
+func _select_patron(state: GameState, only_unseen: bool) -> Dictionary:
 	var thresholds: Dictionary = db.config["patron_trigger"]
 	var cooldown := int(db.config["trigger_rules"]["same_trigger_cooldown"])
 	var candidates: Array = []
 
 	for event in db.patron_events:
 		var patron_key: String = String(event["patron"])
+		if only_unseen and state.is_seen(String(event["id"])):
+			continue
 		if state.get_stat(patron_key) < int(thresholds["influence_min"]):
 			continue
 		if not _cooled_down(state, String(event["id"]), cooldown):
@@ -207,7 +216,13 @@ func _select_random(state: GameState) -> Dictionary:
 	return _weighted_pick(state, pool, weights)
 
 
+## Может ли триггер выпасть: не слишком ли рано после прошлого раза и не
+## исчерпан ли лимит срабатываний за партию. Повтор одного и того же триггера
+## в третий раз перестаёт читаться как последствие решения и становится фоном.
 func _cooled_down(state: GameState, code: String, cooldown: int) -> bool:
+	var limit := int(db.config["trigger_rules"].get("max_firings", 0))
+	if limit > 0 and state.times_seen(code) >= limit:
+		return false
 	if not state.trigger_last_turn.has(code):
 		return true
 	return state.turn - int(state.trigger_last_turn[code]) >= cooldown

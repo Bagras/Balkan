@@ -20,7 +20,7 @@
           {
             "type": "stat_above",
             "stat": "personal",
-            "value": 55
+            "value": 62
           }
         ]
       },
@@ -36,26 +36,26 @@
           {
             "type": "stat_above",
             "stat": "stability",
-            "value": 58
+            "value": 62
           },
           {
             "type": "stat_above",
             "stat": "security",
-            "value": 58
+            "value": 62
           },
           {
             "type": "stat_above",
             "stat": "support",
-            "value": 58
+            "value": 62
           },
           {
             "type": "stat_above",
             "stat": "un",
-            "value": 58
+            "value": 62
           },
           {
             "type": "all_loyalty_above",
-            "value": 48
+            "value": 50
           },
           {
             "type": "final_choice",
@@ -145,7 +145,7 @@
           {
             "type": "stat_above",
             "stat": "un",
-            "value": 50
+            "value": 45
           },
           {
             "type": "final_choice_in",

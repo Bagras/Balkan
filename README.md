@@ -49,7 +49,7 @@ python3 tools/parse_docx.py путь/к/ивентам.docx content/events.json
 python3 tools/parse_docx.py content/events_extra.txt content/events_extra.json
 ```
 
-Всего 117 событий: 68 случайных, 32 шага цепочек (8 цепочек), 10 триггерных,
+Всего 129 событий: 76 случайных, 36 шагов цепочек (9 цепочек), 10 триггерных,
 7 сюжетных. Новые события проще
 дописывать в `content/events_extra.txt` — это обычный текст в том же формате.
 
