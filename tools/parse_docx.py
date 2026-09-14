@@ -33,6 +33,33 @@ CATEGORY_MAP = {
 }
 
 
+# Эффекты, которые в исходнике записаны словами, а не шкалой: «Л-(их община)»,
+# «по профильной шкале ветки» и т. п. Резолверы вычисляются в рантайме из
+# текущего состояния партии — см. scripts/core/effects.gd.
+#   loyalty_lowest                    — самая обделённая община (радикализация идёт оттуда)
+#   loyalty_highest                   — община, держащая власть
+#   loyalty_highest_excluding_lowest  — «другая община», не та, что подняла оружие
+#   branch_stat                       — профильная шкала ветки С-6
+#   donor_community                   — община донора, определяется влиянием патрона
+DYNAMIC_PATCHES = {
+    "XVII.1":  [{"resolver": "loyalty_lowest", "delta": -5}],
+    "XX.1":    [{"resolver": "loyalty_highest", "delta": -3}],
+    "XXIX.1":  [{"resolver": "loyalty_lowest", "delta": -4}],
+    "XXIX.2":  [{"resolver": "loyalty_highest_excluding_lowest", "delta": -2}],
+    "Т-7.3":   [{"resolver": "loyalty_lowest", "delta": -3}],
+    "Т-8.2":   [{"resolver": "donor_community", "delta": 2}],
+    "С-6.1":   [{"resolver": "branch_stat", "delta": 5}],
+}
+
+# Условия доступности выборов, заданные в исходнике прозой.
+REQUIREMENT_PATCHES = {
+    "С-4.1": {"type": "stat_above", "stat": "influence", "value": 55},
+    "С-7.1": {"type": "best_ending"},
+    "С-7.2": {"type": "mid_ending"},
+    "С-7.3": {"type": "always"},
+}
+
+
 def docx_to_lines(path):
     with zipfile.ZipFile(path) as z:
         xml = z.read("word/document.xml").decode("utf-8")
@@ -73,7 +100,90 @@ def parse_effects(block):
     return effects, unresolved
 
 
-def parse_choice(line):
+BRANCH_FLAGS = {
+    "Администратор порядка": "branch_order",
+    "Технократ": "branch_technocrat",
+    "Переговорщик": "branch_negotiator",
+}
+
+
+def _targets(text):
+    """Все коды триггеров/сюжетных событий, упомянутые в куске заметки."""
+    return re.findall(r"[ТС]-\d+", text)
+
+
+def parse_note(note):
+    """Заметку прозой («Через 6-9 ходов — Т-1») превращает в исполняемые хуки.
+
+    Типы хуков:
+      schedule  — взвести отложенный триггер через min..max ходов
+      weight    — поднять вес триггера в очереди
+      flag      — выставить флаг ветки/бонуса для сюжетных событий и концовок
+      guarantee — гарантированно выдать один из триггеров, если он ещё не выпадал
+    """
+    if not note:
+        return []
+    hooks = []
+    for clause in re.split(r"[;]", note):
+        clause = clause.strip()
+        if not clause:
+            continue
+        targets = _targets(clause)
+
+        branch = re.search(r"«([^»]+)»", clause)
+        if branch and "ветк" in clause:
+            hooks.append({"type": "flag", "flag": BRANCH_FLAGS.get(branch.group(1), "branch_unknown")})
+            continue
+        if "Сильный бонус" in clause:
+            hooks.append({"type": "flag", "flag": "crisis_handled_well"}); continue
+        if "Штраф к" in clause:
+            hooks.append({"type": "flag", "flag": "crisis_handled_badly"})
+        if "блокирует лучшие концовки" in clause:
+            hooks.append({"type": "flag", "flag": "best_ending_blocked"}); continue
+        if "Ключевое условие лучших концовок" in clause:
+            hooks.append({"type": "flag", "flag": "best_ending_enabled"}); continue
+        if clause.startswith("Гарантирует"):
+            hooks.append({"type": "guarantee", "targets": targets, "only_if_unseen": True}); continue
+        if clause.lower().startswith("повышает вероятность"):
+            hooks.append({"type": "weight", "targets": targets, "bonus": 2}); continue
+
+        # отложенное срабатывание: окно ходов в любой из формулировок
+        window = re.search(r"через\s+(\d+)\s*[-–—]\s*(\d+)\s+ход", clause, re.IGNORECASE)
+        plusminus = re.search(r"через\s*±\s*(\d+)\s+ход", clause, re.IGNORECASE)
+        if window:
+            lo, hi = int(window.group(1)), int(window.group(2))
+        elif plusminus:
+            n = int(plusminus.group(1)); lo, hi = max(1, n - 2), n + 2
+        else:
+            lo = hi = None
+
+        condition, chance = None, None
+        if "при ЛИЧ выше порога" in clause:
+            condition = {"type": "stat_above", "stat": "personal", "value": 40}
+            lo, hi = (lo or 1), (hi or 3)
+        elif "при утечке" in clause:
+            chance = 0.5
+            lo, hi = (lo or 3), (hi or 6)
+        else:
+            low = re.search(r"Если\s+(Л-серб|Л-алб|Л-грек)\s+низкая", clause)
+            if low:
+                condition = {"type": "stat_below", "stat": STAT_MAP[low.group(1)], "value": 35}
+
+        if targets and lo is not None:
+            hook = {"type": "schedule", "targets": targets, "min": lo, "max": hi}
+            if condition:
+                hook["condition"] = condition
+            if chance:
+                hook["chance"] = chance
+            if "удвоенным эффектом" in clause:
+                hook["multiplier"] = 2
+            hooks.append(hook)
+        elif targets:
+            hooks.append({"type": "weight", "targets": targets, "bonus": 2})
+    return hooks
+
+
+def parse_choice(line, event_code):
     m = re.match(r"^([IVX]+)\.\s+(.*)$", line)
     if not m:
         return None
@@ -103,7 +213,14 @@ def parse_choice(line):
         requirement, raw_effects = req.group(1).strip(), req.group(2).strip()
 
     effects, unresolved = parse_effects(raw_effects)
+    key = f"{event_code}.{index}"
+    dynamic = DYNAMIC_PATCHES.get(key, [])
+    if dynamic:
+        unresolved = []  # разрешено таблицей DYNAMIC_PATCHES
     return {
+        "dynamic_effects": dynamic,
+        "hooks": parse_note(note),
+        "condition": REQUIREMENT_PATCHES.get(key),
         "index": index,
         "text": head.rstrip("."),
         "effects": effects,
@@ -163,7 +280,7 @@ def parse(lines):
         if line == "ВЫБОРЫ:":
             expecting_choices = True; continue
         if expecting_choices:
-            choice = parse_choice(line)
+            choice = parse_choice(line, current["code"])
             if choice:
                 current["choices"].append(choice)
             continue

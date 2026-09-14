@@ -1,0 +1,156 @@
+{
+  "mandate_turns": 30,
+  "stat_min": 0,
+  "stat_max": 100,
+  "stats": {
+    "stability": {
+      "label": "Стабильность",
+      "short": "СТАБ",
+      "start": 45,
+      "fatal": true
+    },
+    "un": {
+      "label": "Одобрение ООН",
+      "short": "ООН",
+      "start": 60,
+      "fatal": true
+    },
+    "security": {
+      "label": "Безопасность",
+      "short": "БЕЗ",
+      "start": 40,
+      "fatal": true
+    },
+    "support": {
+      "label": "Поддержка населения",
+      "short": "ПОД",
+      "start": 50,
+      "fatal": true
+    },
+    "influence": {
+      "label": "Влияние",
+      "short": "ВЛ",
+      "start": 50,
+      "fatal": false
+    },
+    "personal": {
+      "label": "Личные средства",
+      "short": "ЛИЧ",
+      "start": 0,
+      "fatal": false
+    },
+    "loyalty_serb": {
+      "label": "Сербы",
+      "short": "Л-серб",
+      "start": 50,
+      "fatal": false,
+      "group": "loyalty"
+    },
+    "loyalty_alb": {
+      "label": "Албанцы",
+      "short": "Л-алб",
+      "start": 45,
+      "fatal": false,
+      "group": "loyalty"
+    },
+    "loyalty_greek": {
+      "label": "Греки",
+      "short": "Л-грек",
+      "start": 55,
+      "fatal": false,
+      "group": "loyalty"
+    },
+    "patron_belgrade": {
+      "label": "Белград",
+      "short": "Белград",
+      "start": 45,
+      "fatal": false,
+      "group": "patron"
+    },
+    "patron_tirana": {
+      "label": "Тирана",
+      "short": "Тирана",
+      "start": 40,
+      "fatal": false,
+      "group": "patron"
+    },
+    "patron_athens": {
+      "label": "Афины",
+      "short": "Афины",
+      "start": 35,
+      "fatal": false,
+      "group": "patron"
+    }
+  },
+  "patrons": {
+    "patron_belgrade": {
+      "community": "loyalty_serb",
+      "name": "Белград"
+    },
+    "patron_tirana": {
+      "community": "loyalty_alb",
+      "name": "Тирана"
+    },
+    "patron_athens": {
+      "community": "loyalty_greek",
+      "name": "Афины"
+    }
+  },
+  "patron_drift": {
+    "neutral_band": 15,
+    "divisor": 10,
+    "min": -1,
+    "max": 2
+  },
+  "patron_trigger": {
+    "influence_min": 65,
+    "loyalty_high": 62,
+    "loyalty_low": 38
+  },
+  "trigger_rules": {
+    "max_per_turn": 1,
+    "max_consecutive": 2,
+    "same_trigger_cooldown": 6,
+    "corruption_threshold": 40
+  },
+  "thresholds": {
+    "critical": 20,
+    "low": 35,
+    "mid": 50,
+    "high": 65,
+    "very_high": 75
+  },
+  "trigger_conditions": {
+    "Т-3": {
+      "type": "stat_below",
+      "stat": "security",
+      "value": 25
+    },
+    "Т-5": {
+      "type": "stat_above",
+      "stat": "personal",
+      "value": 40
+    },
+    "Т-6": {
+      "type": "stat_below_streak",
+      "stat": "stability",
+      "value": 30,
+      "turns": 3
+    },
+    "Т-8": {
+      "type": "stat_below",
+      "stat": "un",
+      "value": 30
+    },
+    "Т-9": {
+      "type": "stat_below",
+      "stat": "loyalty_serb",
+      "value": 25
+    },
+    "Т-10": {
+      "type": "stat_below",
+      "stat": "security",
+      "value": 15
+    }
+  }
+}
