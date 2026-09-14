@@ -4,75 +4,139 @@
       "id": "act_troops",
       "title": "Запросить дополнительный контингент МСС",
       "description": "Секретариат даёт людей неохотно и записывает каждую роту в графу «признаки ухудшения обстановки». Улицы станут тише, а отчёт о вашей работе — хуже.",
-      "cost": {"un": -8},
-      "gain": {"security": 7, "support": -4},
+      "cost": {
+        "un": -8
+      },
+      "gain": {
+        "security": 7,
+        "support": -4
+      },
       "cooldown": 2,
-      "requires": {"un": 10}
+      "requires": {
+        "un": 20
+      }
     },
     {
       "id": "act_works",
       "title": "Программа общественных работ",
       "description": "Дороги, школы, ремонт сетей — на деньги, выпрошенные сверх сметы. Люди увидят результат до конца квартала, донор увидит перерасход раньше.",
-      "cost": {"un": -6},
-      "gain": {"support": 6, "stability": 2},
+      "cost": {
+        "un": -6
+      },
+      "gain": {
+        "support": 6,
+        "stability": 2
+      },
       "cooldown": 2,
-      "requires": {"un": 8}
+      "requires": {
+        "un": 16
+      }
     },
     {
       "id": "act_anticorruption",
       "title": "Показательная антикоррупционная кампания",
       "description": "Несколько громких дел, пресс-конференция и возврат части средств. Дешевле всего сдать тех, кто и так был расходным материалом.",
-      "cost": {"personal": -6},
-      "gain": {"un": 5, "support": 2},
+      "cost": {
+        "personal": -6
+      },
+      "gain": {
+        "un": 5,
+        "support": 2
+      },
       "cooldown": 3,
-      "requires": {"personal": 6}
+      "requires": {
+        "personal": 12
+      }
     },
     {
       "id": "act_payoff",
       "title": "Неофициальные выплаты общинным лидерам",
       "description": "Наличные в конверте решают за вечер то, на что уходят месяцы переговоров. Решают ненадолго и создают прейскурант.",
-      "cost": {"personal": -6},
-      "gain": {"un": -2},
-      "dynamic_gain": [{"resolver": "loyalty_lowest", "delta": 5}],
+      "cost": {
+        "personal": -6
+      },
+      "gain": {
+        "un": -2
+      },
+      "dynamic_gain": [
+        {
+          "resolver": "loyalty_lowest",
+          "delta": 5
+        }
+      ],
       "cooldown": 2,
-      "requires": {"personal": 6}
+      "requires": {
+        "personal": 12
+      }
     },
     {
       "id": "act_skim",
       "title": "Провести контракт через доверенную фирму",
       "description": "Смета закрыта, объект сдан с оговорками, разница ушла на счёт, к которому ваше имя не привязано. Аудиторы считают такие эпизоды не по одному.",
-      "cost": {"un": -4, "stability": -2},
-      "gain": {"personal": 7},
+      "cost": {
+        "un": -4,
+        "stability": -2
+      },
+      "gain": {
+        "personal": 7
+      },
       "cooldown": 3,
-      "requires": {"un": 6}
+      "requires": {
+        "un": 12
+      }
     },
     {
       "id": "act_curfew",
       "title": "Комендантские меры в проблемных округах",
       "description": "Патрули, блокпосты, час на улице до темноты. Работает мгновенно и запоминается на годы.",
-      "cost": {"support": -5},
-      "gain": {"security": 5, "stability": 2},
+      "cost": {
+        "support": -5
+      },
+      "gain": {
+        "security": 5,
+        "stability": 2
+      },
       "cooldown": 2,
-      "requires": {"support": 7}
+      "requires": {
+        "support": 14
+      }
     },
     {
       "id": "act_tour",
       "title": "Личное турне по общинам",
       "description": "Две недели вне резиденции: сельские клубы, школы, поминальные службы. Вас увидят живым человеком, а в столице тем временем решат без вас.",
-      "cost": {"influence": -5},
-      "gain": {"support": 3},
-      "dynamic_gain": [{"resolver": "loyalty_lowest", "delta": 3}],
+      "cost": {
+        "influence": -5
+      },
+      "gain": {
+        "support": 3
+      },
+      "dynamic_gain": [
+        {
+          "resolver": "loyalty_lowest",
+          "delta": 3
+        }
+      ],
       "cooldown": 3,
-      "requires": {"influence": 7}
+      "requires": {
+        "influence": 14
+      }
     },
     {
       "id": "act_pressure",
       "title": "Давление на парламент",
       "description": "Звонки, напоминания о процедурах и один отозванный документ. Голосование проходит как надо, и об этом узнают все.",
-      "cost": {"influence": -5},
-      "gain": {"stability": 5, "support": -3},
+      "cost": {
+        "influence": -5
+      },
+      "gain": {
+        "stability": 5,
+        "support": -3
+      },
       "cooldown": 2,
-      "requires": {"influence": 7}
+      "requires": {
+        "influence": 14
+      }
     }
   ]
 }

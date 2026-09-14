@@ -152,5 +152,6 @@
       "stat": "security",
       "value": 15
     }
-  }
+  },
+  "effect_multiplier": 2.0
 }
