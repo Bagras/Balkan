@@ -100,6 +100,10 @@ def parse_effects(block):
     return effects, unresolved
 
 
+# Служебные строки под заголовком события: это пометки автора, а не текст,
+# который видит игрок. Сохраняются отдельным полем, в описание не попадают.
+SERVICE_PREFIXES = ("Источник:", "Ветка определяется")
+
 BRANCH_FLAGS = {
     "Администратор порядка": "branch_order",
     "Технократ": "branch_technocrat",
@@ -267,7 +271,7 @@ def parse(lines):
                 "id": ident if kind != "random" else f"R-{ROMAN[ident]:02d}",
                 "code": ident, "kind": kind, "category": category,
                 "title": title, "turn_window": turn_window,
-                "source": None, "description": "", "choices": [],
+                "source": None, "design_note": None, "description": "", "choices": [],
             }
             events.append(current)
             expecting_choices = False
@@ -277,6 +281,8 @@ def parse(lines):
             continue
         if line.startswith("Источник:"):
             current["source"] = line[len("Источник:"):].strip(); continue
+        if line.startswith(SERVICE_PREFIXES):
+            current["design_note"] = line; continue
         if line == "ВЫБОРЫ:":
             expecting_choices = True; continue
         if expecting_choices:
@@ -307,6 +313,9 @@ def main():
             print(f"  !! {e['code']} {e['title']}: выборов {len(e['choices'])}")
         if not e["description"]:
             print(f"  !! {e['code']} {e['title']}: пустое описание")
+        if "\n" in e["description"]:
+            print(f"  !! {e['code']} {e['title']}: описание из нескольких абзацев — "
+                  f"проверь, не попала ли туда служебная строка")
         for c in e["choices"]:
             for u in c["unresolved"]:
                 print(f"  ?  {e['code']}.{c['index']}: {u}")
