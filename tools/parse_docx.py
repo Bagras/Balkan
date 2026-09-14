@@ -267,7 +267,7 @@ def parse(lines):
         if cat:
             category = CATEGORY_MAP[cat.group(1)]; continue
 
-        head = (re.match(r"^№\s+([IVX]+)\.\s+(.+)$", line)
+        head = (re.match(r"^№\s+([IVXLCDM]+)\.\s+(.+)$", line)
                 or re.match(r"^(Т-\d+)\.\s+(.+)$", line)
                 or re.match(r"^(С-\d+)\.\s+(.+)$", line))
         if head and kind:

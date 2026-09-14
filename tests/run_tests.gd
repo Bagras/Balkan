@@ -63,8 +63,8 @@ func equal(actual, expected, what: String) -> void:
 
 func test_content_loads(db: ContentDB) -> void:
 	suite("Загрузка контента")
-	equal(db.events.size(), 56, "всего событий (47 из .docx + 9 дополнительных)")
-	equal(db.events_of_kind("random").size(), 39, "случайных событий")
+	equal(db.events.size(), 77, "всего событий (47 из .docx + 30 дополнительных)")
+	equal(db.events_of_kind("random").size(), 60, "случайных событий")
 	equal(db.events_of_kind("trigger").size(), 10, "триггерных событий")
 	equal(db.events_of_kind("story").size(), 7, "сюжетных событий")
 	equal(db.crises.size(), 4, "кризисных событий")
@@ -375,6 +375,17 @@ func test_content_schema(db: ContentDB) -> void:
 	equal(bad_choices, 0, "у каждого события ровно три выбора")
 	equal(empty_text, 0, "нет пустых описаний и исходов")
 	equal(unknown_stats, [], "все эффекты бьют по существующим шкалам")
+
+	# Коды приходят из двух файлов (events.json и events_extra.json) —
+	# совпадение кода означало бы, что одно событие молча затирает другое.
+	var seen_codes: Dictionary = {}
+	var duplicates: Array = []
+	for event in db.events + db.patron_events + db.crises:
+		var code := String(event.get("code", event.get("id", "")))
+		if seen_codes.has(code):
+			duplicates.append(code)
+		seen_codes[code] = true
+	equal(duplicates, [], "коды событий уникальны между файлами")
 
 	# все цели хуков должны существовать
 	var missing: Array = []

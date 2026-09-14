@@ -13,7 +13,7 @@
 ## Проверки
 
 ```bash
-godot --headless --path . --script res://tests/run_tests.gd   # 58 тестов ядра
+godot --headless --path . --script res://tests/run_tests.gd   # тесты ядра
 godot --headless --path . --script res://tests/ui_smoke.gd    # прогон партии по кнопкам
 godot --headless --path . --script res://tools/simulate.gd -- 500  # баланс
 ```
@@ -30,15 +30,21 @@ godot --headless --path . --script res://tools/simulate.gd -- 500  # балан�
 | `content/*.json` | весь контент игры |
 | `scripts/core/` | ядро: не знает про интерфейс, проверяется headless |
 | `scripts/ui/` | интерфейс, целиком собирается кодом |
-| `tools/parse_docx.py` | генератор `content/events.json` из исходного `.docx` |
+| `tools/parse_docx.py` | генератор событий из `.docx` и из текстовых файлов |
+| `tools/paths.gd` | проверка достижимости каждой концовки |
 
 ## Как править контент
 
-**Текст 47 событий из `.docx` руками не правится.** Он генерируется:
+**Текст событий руками в JSON не правится.** Он генерируется из двух источников
+в одном авторском формате — исходного `.docx` и текстового файла:
 
 ```bash
 python3 tools/parse_docx.py путь/к/ивентам.docx content/events.json
+python3 tools/parse_docx.py content/events_extra.txt content/events_extra.json
 ```
+
+Всего 77 событий: 60 случайных, 10 триггерных, 7 сюжетных. Новые события проще
+дописывать в `content/events_extra.txt` — это обычный текст в том же формате.
 
 Парсер разбирает не только текст, но и служебную разметку: эффекты в фигурных
 скобках, условия доступности и заметки вида «Через 6–9 ходов — Т-1» —
